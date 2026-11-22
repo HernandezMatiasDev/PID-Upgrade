@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PID Control Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d12;
+    --panel:#10151c;
+    --panel-2:#141a22;
+    --border:#1e2733;
+    --text:#d7e0e8;
+    --muted:#6b7785;
+    --green:#39ff88;
+    --amber:#ffb020;
+    --cyan:#3ec9ff;
+    --red:#ff4d5e;
+    --font-display:'Space Grotesk', system-ui, sans-serif;
+    --font-mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 1200px 600px at 50% -10%, rgba(57,255,136,0.05), transparent),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-display);
+    min-height:100vh;
+    padding:24px;
+  }
+  .wrap{max-width:1400px;margin:0 auto;}
+
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:20px;padding-bottom:16px;
+    border-bottom:1px solid var(--border);
+  }
+  header h1{
+    font-size:22px;font-weight:700;letter-spacing:0.3px;margin:0;
+    display:flex;align-items:baseline;gap:10px;
+  }
+  header h1 span{
+    font-family:var(--font-mono);font-size:12px;font-weight:500;
+    color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;
+  }
+  .status{
+    display:flex;align-items:center;gap:8px;
+    font-family:var(--font-mono);font-size:12px;color:var(--green);
+    letter-spacing:1px;text-transform:uppercase;
+  }
+  .dot{
+    width:8px;height:8px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 8px var(--green);
+    animation:pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;} 50%{opacity:0.35;}
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:170px 1fr 300px;
+    gap:16px;
+    align-items:stretch;
+  }
+  @media (max-width:1000px){
+    .grid{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+  }
+  .panel-title{
+    font-family:var(--font-mono);font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;
+  }
+
+  canvas{display:block;width:100%;background:var(--panel-2);border-radius:6px;}
+
+  /* --- Telemetry --- */
+  .telemetry-grid{
+    display:grid;grid-template-columns:1fr;gap:0;
+    font-family:var(--font-mono);
+  }
+  .tel-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:7px 2px;border-bottom:1px dashed var(--border);
+    font-size:12.5px;
+  }
+  .tel-row:last-child{border-bottom:none;}
+  .tel-label{color:var(--muted);letter-spacing:0.5px;}
+  .tel-value{color:var(--text);font-weight:600;}
+  .tel-value.pos{color:var(--green);}
+  .tel-value.err{color:var(--amber);}
+  .tel-value.out{color:var(--cyan);}
+
+  /* --- Controls --- */
+  .controls-panel{margin-top:16px;}
+  .ctrl-groups{
+    display:grid;grid-template-columns:repeat(4, 1fr);gap:14px;
+  }
+  @media (max-width:1250px){.ctrl-groups{grid-template-columns:repeat(2, 1fr);}}
+  @media (max-width:700px){.ctrl-groups{grid-template-columns:1fr;}}
+  .ctrl-group h3{
+    font-family:var(--font-mono);font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:1.5px;
+    margin:0 0 10px 0;padding-bottom:6px;border-bottom:1px solid var(--border);
+  }
+  .field{margin-bottom:10px;}
+  .field label{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:12.5px;color:var(--text);margin-bottom:4px;
+  }
+  .field label .val{
+    font-family:var(--font-mono);color:var(--amber);font-size:12px;
+  }
+  input[type="range"]{
+    -webkit-appearance:none;width:100%;height:4px;border-radius:2px;
+    background:var(--border);outline:none;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--green);cursor:pointer;
+    box-shadow:0 0 6px rgba(57,255,136,0.6);
+    border:2px solid #0a0d12;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:var(--green);
+    cursor:pointer;border:2px solid #0a0d12;
+  }
+  input[type="number"]{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);
+    color:var(--text);font-family:var(--font-mono);font-size:12.5px;
+    padding:6px 8px;border-radius:5px;outline:none;
+  }
+  input[type="number"]:focus{border-color:var(--green);}
+
+  button{
+    width:100%;margin-top:14px;padding:11px;cursor:pointer;
+    background:transparent;color:var(--green);
+    border:1px solid var(--green);border-radius:6px;
+    font-family:var(--font-mono);font-size:12px;letter-spacing:1px;
+    text-transform:uppercase;font-weight:600;
+    transition:background 0.15s, color 0.15s;
+  }
+  button:hover{background:var(--green);color:#04120a;}
+
+  /* paneles en columna: los hijos "fill" ocupan el espacio sobrante */
+  .col{display:flex;flex-direction:column;}
+  .col > canvas{flex:none;}
+  .fillbox{position:relative;flex:1;min-height:150px;}
+  .fillbox.rig{min-height:420px;}
+  canvas.fill{position:absolute;inset:0;width:100%;height:100%;}
+  .term-bar{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .term-bar .panel-title{margin:0;}
+  .seg.inline{margin:0;}
+  .seg.inline button{flex:none;padding:5px 12px;}
+  #termLabel{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--muted);}
+
+  /* selector de modo (Tt) */
+  .seg{display:flex;gap:4px;margin:2px 0 8px;}
+  .seg button{
+    width:auto;flex:1;margin:0;padding:5px 4px;font-size:10.5px;
+    letter-spacing:0.2px;text-transform:none;font-weight:500;
+    border-color:var(--border);color:var(--muted);
+  }
+  .seg button:hover{background:var(--panel-2);color:var(--text);}
+  .seg button.active{
+    border-color:var(--green);color:var(--green);
+    background:rgba(57,255,136,0.08);
+  }
+  input[type="range"]:disabled{opacity:0.3;cursor:not-allowed;}
+  input[type="range"]:disabled::-webkit-slider-thumb{cursor:not-allowed;box-shadow:none;}
+  .hint{
+    font-family:var(--font-mono);font-size:10.5px;color:var(--muted);
+    margin-top:5px;line-height:1.45;
+  }
+  .val.off{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>PID Control Lab <span>simulador de lazo cerrado</span></h1>
+    <div class="status"><span class="dot"></span> live</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- RIG: physical visualization -->
+    <div class="panel col">
+      <div class="panel-title">Rig</div>
+      <div class="fillbox rig"><canvas id="rigCanvas" class="fill" width="140" height="420"></canvas></div>
+    </div>
+
+    <!-- SCOPE: real-time chart -->
+    <div class="panel col">
+      <div class="panel-title">Osciloscopio &mdash; posición / target / salida</div>
+      <canvas id="scopeCanvas" width="760" height="330"></canvas>
+      <div style="display:flex;gap:18px;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--muted);">
+        <span><span style="color:var(--green);">■</span> posición</span>
+        <span><span style="color:var(--amber);">■</span> target</span>
+        <span><span style="color:var(--amber);">┅</span> setpoint efectivo</span>
+        <span><span style="color:var(--cyan);">■</span> salida PID</span>
+        <span style="margin-left:auto;">ventana 20 s · 1 cuadro = 2 s</span>
+      </div>
+      <canvas id="scopeCanvas2" width="760" height="90" style="margin-top:10px;"></canvas>
+
+      <div class="term-bar">
+        <span class="panel-title">Término</span>
+        <div class="seg inline" id="termSel">
+          <button type="button" data-term="P" class="active">P · error</button>
+          <button type="button" data-term="I">I · integral</button>
+          <button type="button" data-term="D">D · derivada</button>
+        </div>
+        <div class="seg inline" id="termMode">
+          <button type="button" data-raw="0" class="active">Salida (aporte)</button>
+          <button type="button" data-raw="1">Valor crudo</button>
+        </div>
+        <span id="termLabel"></span>
+      </div>
+      <div class="fillbox" style="margin-top:8px;"><canvas id="termCanvas" class="fill" width="760" height="200"></canvas></div>
+    </div>
+
+    <!-- TELEMETRY -->
+    <div class="panel">
+      <div class="panel-title">Telemetría</div>
+      <div class="telemetry-grid" id="telemetry"></div>
+    </div>
+
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="panel controls-panel">
+    <div class="panel-title">Controles</div>
+    <div class="ctrl-groups">
+
+      <div class="ctrl-group">
+        <h3>P · Proporcional y setpoint</h3>
+        <div class="field"><label>Target <span class="val" id="v_target">0</span></label>
+          <input type="range" id="target" min="-280" max="280" value="0"></div>
+        <div class="field"><label>Kp <span class="val" id="v_kp">1.2</span></label>
+          <input type="range" id="kp" min="0" max="5" step="0.01" value="1.2"></div>
+        <div class="field"><label>Rampa de setpoint (u/s) <span class="val" id="v_rate">off</span></label>
+          <input type="range" id="rate" min="0" max="600" step="5" value="0"></div>
+        <div class="field"><label>Filtro de setpoint τ (s) <span class="val" id="v_tf">off</span></label>
+          <input type="range" id="tf_filter" min="0" max="2" step="0.01" value="0"></div>
+        <div class="hint">0 = desactivado. La rampa limita la velocidad con que se mueve el setpoint; el filtro suaviza el resultado.</div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>I · D</h3>
+        <div class="field"><label>Ki <span class="val" id="v_ki">0.00</span></label>
+          <input type="range" id="ki" min="0" max="2" step="0.01" value="0.0"></div>
+        <div class="field"><label>Tt anti-windup (s) <span class="val" id="v_tt">off</span></label>
+          <div class="seg" id="ttMode">
+            <button type="button" data-mode="manual" class="active">Manual</button>
+            <button type="button" data-mode="ti">Kp/Ki</button>
+            <button type="button" data-mode="sqrt">√(Kd/Ki)</button>
+          </div>
+          <input type="range" id="Tt" min="0" max="5" step="0.05" value="0">
+          <div class="hint" id="tt_hint"></div></div>
+        <div class="field"><label>Kd <span class="val" id="v_kd">0.00</span></label>
+          <input type="range" id="kd" min="0" max="3" step="0.01" value="0.0"></div>
+        <div class="field"><label>Filtro derivativo τ (s) <span class="val" id="v_kdf">off</span></label>
+          <input type="range" id="k_deriv_filter" min="0" max="1" step="0.01" value="0"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>Física del sistema</h3>
+        <div class="field"><label>Gravedad <span class="val" id="v_gravity">9.8</span></label>
+          <input type="range" id="gravity" min="0" max="30" step="0.1" value="9.8"></div>
+        <div class="field"><label>Masa (carga del dron) <span class="val" id="v_mass">1.0</span></label>
+          <input type="range" id="mass" min="0.2" max="5" step="0.1" value="1.0"></div>
+        <div class="field"><label>Resistencia del aire <span class="val" id="v_damping">0.5</span></label>
+          <input type="range" id="damping" min="0" max="5" step="0.1" value="0.5"></div>
+        <div class="field"><label>Viento vertical (+ sube / − baja) <span class="val" id="v_wind">0</span></label>
+          <input type="range" id="wind" min="-60" max="60" step="1" value="0"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>Salida</h3>
+        <div class="field"><label>Out max <span class="val" id="v_outmax">300</span></label>
+          <input type="range" id="out_max" min="10" max="300" step="1" value="300"></div>
+        <div class="field"><label>Out min <span class="val" id="v_outmin">-300</span></label>
+          <input type="range" id="out_min" min="-300" max="-10" step="1" value="-300"></div>
+        <div class="field"><label>Deadband <span class="val" id="v_deadband">0</span></label>
+          <input type="range" id="deadband" min="0" max="30" step="1" value="0"></div>
+        <div class="field"><label>Feedforward <span class="val" id="v_ff">0</span></label>
+          <input type="range" id="feedforward" min="-300" max="300" step="1" value="0"></div>
+        <div class="hint">Feedforward se suma a la salida (para compensar el peso, ver "Peso" en telemetría).</div>
+      </div>
+
+    </div>
+    <button onclick="resetSim()">Reiniciar experimento</button>
+  </div>
+
+</div>
+
+<script>
+const rigCanvas = document.getElementById('rigCanvas');
+const rigCtx = rigCanvas.getContext('2d');
+const scopeCanvas = document.getElementById('scopeCanvas');
+const scopeCtx = scopeCanvas.getContext('2d');
+const scope2Canvas = document.getElementById('scopeCanvas2');
+const scope2Ctx = scope2Canvas.getContext('2d');
+
+const termCanvas = document.getElementById('termCanvas');
+const termCtx = termCanvas.getContext('2d');
+
+// Ajusta la resolucion interna del canvas al tamano real de su contenedor
+// (el contenedor se estira para llenar el recuadro).
+function fitCanvas(c){
+  const r = c.parentElement.getBoundingClientRect();
+  const w = Math.max(10, Math.floor(r.width)), h = Math.max(10, Math.floor(r.height));
+  if (c.width !== w) c.width = w;
+  if (c.height !== h) c.height = h;
+}
+
+const css = getComputedStyle(document.documentElement);
+const COLOR = {
+  green: css.getPropertyValue('--green').trim(),
+  amber: css.getPropertyValue('--amber').trim(),
+  cyan: css.getPropertyValue('--cyan').trim(),
+  red: css.getPropertyValue('--red').trim(),
+  border: css.getPropertyValue('--border').trim(),
+  muted: css.getPropertyValue('--muted').trim(),
+};
+
+// ---- Estado físico (100% client-side) ----
+// Convención: arriba = positivo, abajo = negativo (0 = centro del riel).
+const RANGE = 280; // límites físicos del riel: -RANGE (piso) a +RANGE (techo)
+const START_POSITION = -100; // el dron arranca 100 unidades por debajo del target (= escalon de "1.0" del informe)
+let position = START_POSITION;
+let velocity = 0;
+let lastTime = performance.now();
+// dt con el que se integro la fisica en la vuelta anterior: es el intervalo en el que se movio
+// la posicion que se le manda al PID, asi que es el dt correcto para calcular la derivada.
+let physDt = 0.025;
+let lastOutput = 0;
+let lastLimit = 300;
+
+// ---- Modelo fisico (dron / masa que sube y baja) ----
+//   m * x'' = u(PID) - peso - c * x' + viento
+//   peso = m * g * WEIGHT_K     (WEIGHT_K solo escala unidades: 1 kg * 9.8 -> ~29 unidades de empuje)
+// Con "solo P" el dron se queda por debajo del target: error = peso / Kp (error estacionario).
+// El termino I acumula error hasta que la salida iguala el peso -> error 0.
+// El aire (c) y el termino D son los que amortiguan las oscilaciones.
+const PHYS = { WEIGHT_K: 3.0, MAX_SUBSTEP: 0.005 };
+
+// ---- Punto fijo hacia el PID en C ----
+// pid.c trabaja con posicion/target/error como int32, o sea de a 1 unidad entera.
+// Eso mete ruido de cuantizacion que el termino D amplifica muchisimo.
+// Solucion: mandamos posicion y target multiplicados por FIX (resolucion 0.01) y
+// dividimos las ganancias por FIX, asi la salida del PID es identica a la teorica.
+// Todo lo que vuelve del backend se "des-escala" en fromBackend().
+const FIX = 100;
+const KI_SCALE = 0.3;
+let fps = 0;
+
+// Convierte un valor físico (-RANGE..RANGE, positivo = arriba) a coordenada
+// de píxel Y en un canvas de altura dada (Y de canvas crece hacia abajo,
+// asi que +RANGE debe mapear cerca del margen superior).
+function physToPixelY(value, canvasHeight, margin = 12){
+  const usable = canvasHeight - margin * 2;
+  const t = (value + RANGE) / (2 * RANGE); // 0 en -RANGE, 1 en +RANGE
+  return canvasHeight - margin - t * usable;
+}
+
+// ---- Historial para el osciloscopio ----
+const HISTORY_SECONDS = 20;
+let history = []; // {t, position, target, output}
+let t0 = performance.now();
+
+const els = {
+  target: document.getElementById('target'),
+  kp: document.getElementById('kp'),
+  ki: document.getElementById('ki'),
+  kd: document.getElementById('kd'),
+  k_deriv_filter: document.getElementById('k_deriv_filter'),
+  out_max: document.getElementById('out_max'),
+  out_min: document.getElementById('out_min'),
+  deadband: document.getElementById('deadband'),
+  rate: document.getElementById('rate'),
+  tf_filter: document.getElementById('tf_filter'),
+  Tt: document.getElementById('Tt'),
+  feedforward: document.getElementById('feedforward'),
+  gravity: document.getElementById('gravity'),
+  mass: document.getElementById('mass'),
+  damping: document.getElementById('damping'),
+  wind: document.getElementById('wind'),
+};
+
+// ---- Tt (anti-windup, back-calculation) ----
+//   manual -> el valor del slider
+//   ti     -> Tt = Kp/Ki         (= Ti)
+//   sqrt   -> Tt = sqrt(Kd/Ki)   (= sqrt(Ti·Td))
+// Se calcula con las ganancias efectivas (las mismas que ve el PID, incluida KI_SCALE).
+// Tt = 0 desactiva el anti-windup en pid.c.
+const TT_MAX = 60;
+let ttMode = 'manual';
+
+function computeTt(){
+  const kp = parseFloat(els.kp.value);
+  const ki = parseFloat(els.ki.value) * KI_SCALE;
+  const kd = parseFloat(els.kd.value);
+  let tt = 0;
+  if (ttMode === 'manual') tt = parseFloat(els.Tt.value);
+  else if (ki > 0) tt = (ttMode === 'ti') ? kp / ki : (kd > 0 ? Math.sqrt(kd / ki) : 0);
+  return (Number.isFinite(tt) && tt > 0) ? Math.min(tt, TT_MAX) : 0;
+}
+
+function setVal(id, text, off){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.classList.toggle('off', !!off);
+}
+
+function refreshLabels(){
+  document.getElementById('v_target').textContent = els.target.value;
+  document.getElementById('v_kp').textContent = parseFloat(els.kp.value).toFixed(2);
+  document.getElementById('v_ki').textContent = parseFloat(els.ki.value).toFixed(2);
+  document.getElementById('v_kd').textContent = parseFloat(els.kd.value).toFixed(2);
+  document.getElementById('v_gravity').textContent = parseFloat(els.gravity.value).toFixed(1);
+  document.getElementById('v_mass').textContent = parseFloat(els.mass.value).toFixed(1);
+  document.getElementById('v_damping').textContent = parseFloat(els.damping.value).toFixed(1);
+  document.getElementById('v_wind').textContent = els.wind.value;
+  document.getElementById('v_outmax').textContent = els.out_max.value;
+  document.getElementById('v_outmin').textContent = els.out_min.value;
+  document.getElementById('v_deadband').textContent = els.deadband.value;
+  document.getElementById('v_ff').textContent = els.feedforward.value;
+
+  // filtros: 0 = desactivado
+  const rate = parseFloat(els.rate.value), tf = parseFloat(els.tf_filter.value), kdf = parseFloat(els.k_deriv_filter.value);
+  setVal('v_rate', rate > 0 ? rate.toFixed(0) : 'off', !(rate > 0));
+  setVal('v_tf',   tf   > 0 ? tf.toFixed(2)   : 'off', !(tf > 0));
+  setVal('v_kdf',  kdf  > 0 ? kdf.toFixed(2)  : 'off', !(kdf > 0));
+
+  // Tt
+  const tt = computeTt();
+  setVal('v_tt', tt > 0 ? tt.toFixed(2) : 'off', !(tt > 0));
+  els.Tt.disabled = (ttMode !== 'manual');
+  const kiEff = parseFloat(els.ki.value) * KI_SCALE;
+  let hint;
+  if (parseFloat(els.ki.value) === 0) hint = 'Ki = 0: no hay integral, el anti-windup no actúa.';
+  else if (ttMode === 'manual') hint = tt > 0 ? 'Manual. Tt chico = descarga más rápido la saturación.' : 'Manual. Tt = 0: anti-windup desactivado.';
+  else if (ttMode === 'ti') hint = `Tt = Kp/Ki = ${parseFloat(els.kp.value).toFixed(2)} / ${kiEff.toFixed(3)}  (Ki efectivo = Ki·${KI_SCALE})`;
+  else if (parseFloat(els.kd.value) === 0) hint = 'Kd = 0: √(Kd/Ki) = 0, anti-windup desactivado.';
+  else hint = `Tt = √(Kd/Ki) = √(${parseFloat(els.kd.value).toFixed(2)} / ${kiEff.toFixed(3)})  (Ki efectivo = Ki·${KI_SCALE})`;
+  document.getElementById('tt_hint').textContent = hint;
+}
+
+document.querySelectorAll('#ttMode button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    ttMode = btn.dataset.mode;
+    document.querySelectorAll('#ttMode button').forEach(b => b.classList.toggle('active', b === btn));
+    refreshLabels();
+    updateBackend();
+  });
+});
+
+// Parametros que se mandan al backend (en unidades de punto fijo, ver FIX)
+function buildParams(extra = {}){
+  return {
+    kp: parseFloat(els.kp.value) / FIX,
+    ki: parseFloat(els.ki.value) * KI_SCALE / FIX,
+    kd: parseFloat(els.kd.value) / FIX,
+    Tt: computeTt(),                                   // segundos, sin escalar
+    rate: parseFloat(els.rate.value) * FIX,            // unidades de punto fijo / s
+    tf_filter: parseFloat(els.tf_filter.value),        // segundos
+    k_deriv_filter: parseFloat(els.k_deriv_filter.value), // segundos
+    target: Math.round(parseFloat(els.target.value) * FIX),
+    out_max: parseFloat(els.out_max.value),
+    out_min: parseFloat(els.out_min.value),
+    deadband: parseFloat(els.deadband.value) * FIX,
+    ...extra,
+  };
+}
+
+// Lo que devuelve el backend viene en punto fijo: lo pasamos a unidades normales.
+function fromBackend(d){
+  return {
+    ...d,
+    kp: d.kp * FIX, ki: (d.ki/KI_SCALE) * FIX, kd: d.kd * FIX,
+    rate: d.rate / FIX,
+    target: d.target / FIX,
+    error: d.error / FIX,
+    deadband: d.deadband / FIX,
+    ramp_offset: d.ramp_offset / FIX,
+    filt_offset: d.filt_offset / FIX,
+    etarget: (d.target + d.filt_offset) / FIX, // setpoint efectivo tras rampa + filtro
+    // la integral esta en unidades de salida (ki ya incluye el 1/FIX), no se escala
+    derivative: d.derivative / FIX,
+  };
+}
+
+// Si el usuario mueve un slider mientras hay un envio en curso, antes se perdia
+// ese valor. Ahora se marca "dirty" y se reenvia el ultimo estado al terminar.
+let sending = false;
+let dirty = false;
+async function updateBackend(){
+  if (sending){ dirty = true; return; }
+  sending = true;
+  try {
+    do {
+      dirty = false;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      try {
+        await fetch('/update', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          signal: controller.signal,
+          body: JSON.stringify(buildParams())
+        });
+      } catch (err) {
+        console.warn('No se pudo actualizar parámetros:', err);
+      } finally {
+        clearTimeout(timeout);
+      }
+    } while (dirty);
+  } finally {
+    sending = false;
+  }
+}
+
+async function resetSim(){
+  position = START_POSITION;
+  velocity = 0;
+  lastOutput = 0;
+  history = [];
+  t0 = performance.now();
+  try {
+    await fetch('/update', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(buildParams({ reset: true }))
+    });
+  } catch (err) {
+    console.warn('No se pudo reiniciar:', err);
+  }
+  lastTime = performance.now();
+}
+
+document.querySelectorAll('input[type="range"]').forEach(input => {
+  input.addEventListener('input', () => {
+    refreshLabels();
+    if (['gravity','mass','damping','wind','feedforward'].includes(input.id)) return; // puramente client-side (física)
+    updateBackend();
+  });
+});
+
+function renderTelemetry(d, dtMs){
+  const off = (v, dec) => v > 0 ? v.toFixed(dec) : 'off';
+  const rows = [
+    ['Kp', d.kp?.toFixed(3)],
+    ['Ki', d.ki?.toFixed(3)],
+    ['Kd', d.kd?.toFixed(3)],
+    ['Tt / Kb', d.kb > 0 ? `${d.Tt.toFixed(2)} s / ${d.kb.toFixed(2)}` : 'off'],
+    ['Rampa setpoint', off(d.rate, 0)],
+    ['Filtro setpoint τ', off(d.tf_filter, 2)],
+    ['Filtro derivativo τ', off(d.k_deriv_filter, 2)],
+    ['Target', d.target, 'pos'],
+    ['Setpoint efectivo', d.etarget?.toFixed(1), 'pos'],
+    ['Posición', position.toFixed(1), 'pos'],
+    ['Velocidad', velocity.toFixed(1)],
+    ['Error', d.error?.toFixed(2), 'err'],
+    ['Deadband', d.deadband?.toFixed(1)],
+    ['Suma integral', d.integral?.toFixed(2)],
+    ['Derivada', d.derivative?.toFixed(2)],
+    ['Feedforward', parseFloat(els.feedforward.value).toFixed(0)],
+    ['Salida PID', d.output?.toFixed(2), 'out'],
+    ['Peso (m·g)', (parseFloat(els.mass.value) * parseFloat(els.gravity.value) * PHYS.WEIGHT_K).toFixed(1)],
+    ['Out max / min', `${d.out_max} / ${d.out_min}`],
+    ['dt', `${dtMs.toFixed(1)} ms`],
+    ['FPS', fps.toFixed(0)],
+  ];
+  document.getElementById('telemetry').innerHTML = rows.map(([label, value, cls]) =>
+    `<div class="tel-row"><span class="tel-label">${label}</span><span class="tel-value ${cls||''}">${value}</span></div>`
+  ).join('');
+}
+
+function drawRig(target){
+  fitCanvas(rigCanvas);
+  const w = rigCanvas.width, h = rigCanvas.height;
+  rigCtx.clearRect(0,0,w,h);
+
+  const railX = w/2;
+  const blockY = physToPixelY(position, h);
+  const targetY = physToPixelY(target, h);
+
+  // Rail
+  rigCtx.strokeStyle = COLOR.border;
+  rigCtx.lineWidth = 2;
+  rigCtx.beginPath();
+  rigCtx.moveTo(railX, 10);
+  rigCtx.lineTo(railX, h-10);
+  rigCtx.stroke();
+
+  // Piso (referencia 0 = centro, extremos = límites físicos)
+  rigCtx.fillStyle = COLOR.muted;
+  rigCtx.font = '9px var(--font-mono)';
+
+  // Target marker
+  rigCtx.strokeStyle = COLOR.amber;
+  rigCtx.setLineDash([4,4]);
+  rigCtx.beginPath();
+  rigCtx.moveTo(10, targetY);
+  rigCtx.lineTo(w-10, targetY);
+  rigCtx.stroke();
+  rigCtx.setLineDash([]);
+
+  // Mass (block)
+  const blockH = 22, blockW = 60;
+  rigCtx.fillStyle = COLOR.green;
+  rigCtx.shadowColor = COLOR.green;
+  rigCtx.shadowBlur = 10;
+  rigCtx.fillRect(railX-blockW/2, blockY-blockH/2, blockW, blockH);
+  rigCtx.shadowBlur = 0;
+
+  // Force arrow (proportional to last output). Positivo = empuja hacia
+  // arriba (pixel Y menor), igual que la convención física.
+  const arrowLen = Math.max(-40, Math.min(40, (lastOutput / lastLimit) * 40));
+  const tipY = blockY - arrowLen;
+  rigCtx.strokeStyle = COLOR.cyan;
+  rigCtx.lineWidth = 2;
+  rigCtx.beginPath();
+  rigCtx.moveTo(railX+40, blockY);
+  rigCtx.lineTo(railX+40, tipY);
+  rigCtx.stroke();
+  rigCtx.fillStyle = COLOR.cyan;
+  rigCtx.beginPath();
+  const dir = arrowLen >= 0 ? -1 : 1;
+  rigCtx.moveTo(railX+40, tipY);
+  rigCtx.lineTo(railX+35, tipY - dir*6);
+  rigCtx.lineTo(railX+45, tipY - dir*6);
+  rigCtx.closePath();
+  rigCtx.fill();
+}
+
+function drawGrid(ctx, w, h, rows, cols){
+  ctx.strokeStyle = COLOR.border;
+  ctx.lineWidth = 1;
+  for(let i=0;i<=cols;i++){
+    const x = (w/cols)*i;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+  }
+  for(let i=0;i<=rows;i++){
+    const y = (h/rows)*i;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+  }
+}
+
+function drawScope(){
+  const w = scopeCanvas.width, h = scopeCanvas.height;
+  scopeCtx.clearRect(0,0,w,h);
+  drawGrid(scopeCtx, w, h, 6, 10);
+  if (history.length < 2) return;
+
+  const tNow = history[history.length-1].t;
+  const tMin = tNow - HISTORY_SECONDS;
+
+  function xOf(t){ return ((t - tMin) / HISTORY_SECONDS) * w; }
+  function yOf(v){ return physToPixelY(v, h); }
+
+  function plot(key, color, glow, dash){
+    scopeCtx.setLineDash(dash || []);
+    scopeCtx.strokeStyle = color;
+    scopeCtx.lineWidth = 2;
+    if (glow){ scopeCtx.shadowColor = color; scopeCtx.shadowBlur = 6; }
+    scopeCtx.beginPath();
+    let started = false;
+    for(const p of history){
+      if (p.t < tMin) continue;
+      const x = xOf(p.t), y = yOf(p[key]);
+      if (!started){ scopeCtx.moveTo(x,y); started = true; } else { scopeCtx.lineTo(x,y); }
+    }
+    scopeCtx.stroke();
+    scopeCtx.setLineDash([]);
+    scopeCtx.shadowBlur = 0;
+  }
+
+  plot('target', COLOR.amber, false);
+  plot('etarget', COLOR.amber, false, [5, 4]);
+  plot('position', COLOR.green, true);
+
+  // secondary strip: output
+  scope2Ctx.clearRect(0,0,w,scope2Canvas.height);
+  drawGrid(scope2Ctx, w, scope2Canvas.height, 2, 10);
+  scope2Ctx.strokeStyle = COLOR.cyan;
+  scope2Ctx.lineWidth = 2;
+  scope2Ctx.shadowColor = COLOR.cyan;
+  scope2Ctx.shadowBlur = 6;
+  scope2Ctx.beginPath();
+  let started = false;
+  const hh = scope2Canvas.height;
+  for(const p of history){
+    if (p.t < tMin) continue;
+    const x = xOf(p.t);
+    const y = hh/2 - (p.output / p.lim) * (hh/2 - 6);
+    if (!started){ scope2Ctx.moveTo(x,y); started = true; } else { scope2Ctx.lineTo(x,y); }
+  }
+  scope2Ctx.stroke();
+  scope2Ctx.shadowBlur = 0;
+}
+
+// ---- Grafica de un solo termino (P / I / D) ----
+const TERMS = {
+  P: { color: '#ff7ad9', key: 'pTerm', rawKey: 'err',
+       nameTerm: 'P = Kp · error',       nameRaw: 'error (target − posición)' },
+  I: { color: '#a78bfa', key: 'iTerm', rawKey: 'iRaw',
+       nameTerm: 'I = suma integral',    nameRaw: 'suma integral' },
+  D: { color: COLOR.red, key: 'dTerm', rawKey: 'deriv',
+       nameTerm: 'D = Kd · derivada',    nameRaw: 'derivada medida (−d pos/dt)' },
+};
+let termSel = 'P', termRaw = false;
+
+function niceCeil(v){
+  const e = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / e;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e;
+}
+
+function updateTermUI(){
+  const T = TERMS[termSel];
+  document.getElementById('termLabel').textContent = termRaw ? T.nameRaw : T.nameTerm;
+  document.getElementById('termLabel').style.color = T.color;
+}
+
+document.querySelectorAll('#termSel button').forEach(btn => btn.addEventListener('click', () => {
+  termSel = btn.dataset.term;
+  document.querySelectorAll('#termSel button').forEach(b => b.classList.toggle('active', b === btn));
+  updateTermUI();
+}));
+document.querySelectorAll('#termMode button').forEach(btn => btn.addEventListener('click', () => {
+  termRaw = btn.dataset.raw === '1';
+  document.querySelectorAll('#termMode button').forEach(b => b.classList.toggle('active', b === btn));
+  updateTermUI();
+}));
+
+function drawTerm(){
+  fitCanvas(termCanvas);
+  const w = termCanvas.width, h = termCanvas.height;
+  termCtx.clearRect(0, 0, w, h);
+  drawGrid(termCtx, w, h, 4, 10);
+  if (history.length < 2) return;
+
+  const T = TERMS[termSel];
+  const key = termRaw ? T.rawKey : T.key;
+  const tNow = history[history.length-1].t;
+  const tMin = tNow - HISTORY_SECONDS;
+
+  // escala automatica simetrica (1-2-5), minimo 1 unidad
+  let maxAbs = 0;
+  for (const p of history) if (p.t >= tMin) maxAbs = Math.max(maxAbs, Math.abs(p[key]));
+  const scale = niceCeil(Math.max(maxAbs * 1.05, 1));
+  const yOf = v => h/2 - (v / scale) * (h/2 - 16);
+
+  // linea de cero
+  termCtx.strokeStyle = COLOR.muted;
+  termCtx.lineWidth = 1;
+  termCtx.setLineDash([4, 4]);
+  termCtx.beginPath(); termCtx.moveTo(0, h/2); termCtx.lineTo(w, h/2); termCtx.stroke();
+  termCtx.setLineDash([]);
+
+  // curva
+  termCtx.strokeStyle = T.color;
+  termCtx.lineWidth = 2;
+  termCtx.shadowColor = T.color;
+  termCtx.shadowBlur = 6;
+  termCtx.beginPath();
+  let started = false;
+  for (const p of history){
+    if (p.t < tMin) continue;
+    const x = ((p.t - tMin) / HISTORY_SECONDS) * w, y = yOf(p[key]);
+    if (!started){ termCtx.moveTo(x, y); started = true; } else { termCtx.lineTo(x, y); }
+  }
+  termCtx.stroke();
+  termCtx.shadowBlur = 0;
+
+  // rotulos: escala y valor actual
+  termCtx.font = '10.5px "JetBrains Mono", ui-monospace, monospace';
+  termCtx.fillStyle = COLOR.muted;
+  termCtx.textAlign = 'left';
+  termCtx.fillText('+' + scale, 6, 12);
+  termCtx.fillText('−' + scale, 6, h - 5);
+  termCtx.textAlign = 'right';
+  termCtx.fillStyle = T.color;
+  termCtx.fillText(history[history.length-1][key].toFixed(2), w - 6, 12);
+}
+
+updateTermUI();
+
+async function loop(){
+  try {
+    const now = performance.now();
+    let dt = (now - lastTime) / 1000.0;
+    lastTime = now;
+    fps = dt > 0 ? (1/dt) : fps;
+    dt = Math.min(Math.max(dt, 0), 0.1); // evita saltos si la pestaña estuvo en pausa
+
+    const response = await fetch('/compute', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ position: Math.round(position * FIX), dt: physDt, feedforward: parseFloat(els.feedforward.value) })
+    });
+    if (!response.ok) throw new Error('compute failed: ' + response.status);
+    const d = fromBackend(await response.json());
+
+    // Defensa: si por lo que sea llega un valor no finito, lo ignoramos
+    // esta vuelta en lugar de dejar que corrompa la física.
+    if (!Number.isFinite(d.output)) throw new Error('salida no finita: ' + d.output);
+    lastOutput = d.output;
+    lastLimit = Math.max(Math.abs(d.out_max), Math.abs(d.out_min), 1);
+
+    // Física: m·x'' = empuje(PID) − peso − c·x' + viento
+    // Convención: arriba = positivo. El empuje del PID es la "fuerza" que se aplica,
+    // el peso siempre tira hacia abajo y el aire frena proporcionalmente a la velocidad.
+    // Se integra en sub-pasos chicos (Euler semi-implícito) para que sea estable
+    // aunque el dt del frame cambie.
+    const gravity = parseFloat(els.gravity.value);
+    const mass    = parseFloat(els.mass.value);
+    const drag    = parseFloat(els.damping.value);
+    const wind    = parseFloat(els.wind.value);
+    const weight  = mass * gravity * PHYS.WEIGHT_K;
+
+    const steps = Math.max(1, Math.ceil(dt / PHYS.MAX_SUBSTEP));
+    const h = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      const force = d.output - weight - drag * velocity + wind;
+      velocity += (force / mass) * h;
+      position += velocity * h;
+
+      // Piso y techo del riel: el dron se apoya / se frena contra el límite
+      if (position > RANGE)  { position = RANGE;  velocity = Math.min(velocity, 0); }
+      if (position < -RANGE) { position = -RANGE; velocity = Math.max(velocity, 0); }
+    }
+
+    physDt = dt; // el proximo /compute ve la posicion que se movio durante este dt
+
+    if (!Number.isFinite(position)) position = 0; // ultimo recurso
+    if (!Number.isFinite(velocity)) velocity = 0;
+
+    history.push({
+      t: (now - t0)/1000, position, target: d.target, etarget: d.etarget, output: d.output, lim: lastLimit,
+      // terminos del PID (en unidades de salida) y valores crudos
+      pTerm: d.kp * d.error, iTerm: d.integral, dTerm: d.kd * d.derivative,
+      err: d.error, iRaw: d.integral, deriv: d.derivative,
+    });
+    const cutoff = (now - t0)/1000 - HISTORY_SECONDS - 1;
+    while (history.length && history[0].t < cutoff) history.shift();
+
+    drawRig(d.target);
+    drawScope();
+    drawTerm();
+    renderTelemetry(d, dt*1000);
+  } catch (err) {
+    // No dejamos que un frame fallido mate la animación: lo logueamos
+    // y seguimos con el siguiente frame.
+    console.warn('Frame omitido:', err);
+  } finally {
+    requestAnimationFrame(loop);
+  }
+}
+
+refreshLabels();
+updateBackend().then(() => {
+  lastTime = performance.now();
+  t0 = performance.now();
+  loop();
+}).catch(err => {
+  console.error('No se pudo inicializar, arrancando igual:', err);
+  lastTime = performance.now();
+  t0 = performance.now();
+  loop();
+});
+</script>
+</body>
+</html>
