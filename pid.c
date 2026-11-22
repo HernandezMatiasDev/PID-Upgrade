@@ -186,7 +186,7 @@ float PID_Compute(PIDController *pid, int32_t current_position, float delta_time
         pid->ramp_offset = 0.0f;
     }
 
-    // 2) pasa-bajos de primer orden (sobre la salida de la rampa)
+    // filtro pasa-bajos de primer orden (sobre la salida de la rampa)
     if (pid->tf_filter > 0.0f)
     {
         float a = delta_time / (pid->tf_filter + delta_time);
