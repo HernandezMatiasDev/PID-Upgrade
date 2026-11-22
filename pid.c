@@ -219,7 +219,7 @@ float PID_Compute(PIDController *pid, int32_t current_position, float delta_time
 
     // calculamos la derivada
 
-    // calculamos d con filtro de paso bajo
+    // calculamos la derivada con filtro de paso bajo
     if (delta_time > 1e-6f)
     {
         float raw_derivative = ( pid->previous_position - current_position) / delta_time;
@@ -238,9 +238,8 @@ float PID_Compute(PIDController *pid, int32_t current_position, float delta_time
     float output = clamp(raw_output, pid->out_min, pid->out_max);
     
 
-    // Calculamos la integral (I): acumula Ki*error; el término con kb la descarga cuando la salida satura (anti-windup)
+    // Calculamos la integral: acumula Ki*error; el término con kb la descarga cuando la salida satura (anti-windup)
     pid->integral += (pid->ki * error + pid->kb * (output - raw_output)) * delta_time;
-    // la integral nunca sale del rango de salida (la integral ya incluye ki, por eso se divide por ki)
     pid->integral = clamp(pid->integral, pid->out_min - Feedforward, pid->out_max - Feedforward);
 
    
