@@ -509,7 +509,7 @@ Para aislar el efecto del anti-windup desactivé las mejoras del P (sin rampa ni
 
 *Con `Tt = 5 s` (`kb = 0,2`): el valor máximo de la integral fue de alrededor de 30. Coincide, aproximadamente, con lo que hace falta para sostener el peso (29,4). El sobreimpulso es claramente menor.*
 
-> **Ojo con la escala:** en las dos capturas el gráfico de la integral tiene escalas distintas (±100 en la primera, ±50 en la segunda), porque cambié el máximo y el mínimo del eje. La diferencia entre un tope en 80 y un máximo en 30 se ve más claramente en los valores que en la altura de la curva.
+> En las dos capturas el gráfico de la integral tiene escalas distintas (±100 en la primera, ±50 en la segunda), porque cambia el máximo y el mínimo del eje. La diferencia entre un tope en 80 y un máximo en 30 se ve más claramente en los valores que en la altura de la curva.
 
 ---
 
